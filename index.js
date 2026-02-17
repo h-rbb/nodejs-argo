@@ -445,6 +445,7 @@ async function extractDomains() {
         killBotProcess();
         await new Promise((resolve) => setTimeout(resolve, 3000));
         const args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${FILE_PATH}/boot.log --loglevel info --url http://localhost:${ARGO_PORT}`;
+        // Use longer delay (3000ms) to ensure bot fully initializes before extracting domains
         await runCloudflaredBot(args, 3000);
         await extractDomains(); // 重新提取域名
       }
@@ -454,19 +455,19 @@ async function extractDomains() {
 }
 
 // Helper functions for parsing API responses
-function parseIpapiResponse(data) {
+function parseIpapiCoResponse(data) {
   return data.country_code && data.org ? `${data.country_code}_${data.org}` : null;
 }
 
-function parseIpApiResponse(data) {
+function parseIpApiComResponse(data) {
   return data.status === 'success' && data.countryCode && data.org ? `${data.countryCode}_${data.org}` : null;
 }
 
 // 获取isp信息 (带重试机制)
 async function getMetaInfo() {
   const apis = [
-    { url: 'https://ipapi.co/json/', parseResponse: parseIpapiResponse },
-    { url: 'http://ip-api.com/json/', parseResponse: parseIpApiResponse }
+    { url: 'https://ipapi.co/json/', parseResponse: parseIpapiCoResponse },
+    { url: 'http://ip-api.com/json/', parseResponse: parseIpApiComResponse }
   ];
 
   for (const api of apis) {
