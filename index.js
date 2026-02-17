@@ -51,13 +51,14 @@ async function uploadToAPI(url, data, successMessage) {
       headers: { 'Content-Type': 'application/json' }
     });
     
-    if (response && response.status === 200) {
+    if (response.status === 200) {
       console.log(successMessage);
       return response;
     } else {
       return null;
     }
   } catch (error) {
+    console.error(`Error uploading to API: ${error.message}`);
     return null;
   }
 }
@@ -459,11 +460,20 @@ async function extractDomains() {
   }
 }
 
+// Helper functions for parsing API responses
+function parseIpapiResponse(data) {
+  return data.country_code && data.org ? `${data.country_code}_${data.org}` : null;
+}
+
+function parseIpApiResponse(data) {
+  return data.status === 'success' && data.countryCode && data.org ? `${data.countryCode}_${data.org}` : null;
+}
+
 // 获取isp信息 (带重试机制)
 async function getMetaInfo() {
   const apis = [
-    { url: 'https://ipapi.co/json/', parseResponse: (data) => data.country_code && data.org ? `${data.country_code}_${data.org}` : null },
-    { url: 'http://ip-api.com/json/', parseResponse: (data) => data.status === 'success' && data.countryCode && data.org ? `${data.countryCode}_${data.org}` : null }
+    { url: 'https://ipapi.co/json/', parseResponse: parseIpapiResponse },
+    { url: 'http://ip-api.com/json/', parseResponse: parseIpApiResponse }
   ];
 
   for (const api of apis) {
