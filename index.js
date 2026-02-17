@@ -54,11 +54,10 @@ async function uploadToAPI(url, data, successMessage) {
     if (response.status === 200) {
       console.log(successMessage);
       return response;
-    } else {
-      return null;
     }
+    return null;
   } catch (error) {
-    console.error(`Error uploading to API: ${error.message}`);
+    console.error(`Error uploading to API ${url}: ${error.message}`);
     return null;
   }
 }
@@ -220,13 +219,7 @@ function downloadFile(fileName, fileUrl, callback) {
 
 // 运行cloudflared bot
 async function runCloudflaredBot(args, delay = 2000) {
-  try {
-    await exec(`nohup ${botPath} ${args} >/dev/null 2>&1 &`);
-    console.log(`${botName} is running`);
-    await new Promise((resolve) => setTimeout(resolve, delay));
-  } catch (error) {
-    console.error(`Error executing command: ${error}`);
-  }
+  await executeCommand(`nohup ${botPath} ${args} >/dev/null 2>&1 &`, botName, delay);
 }
 
 // 下载并运行依赖文件
