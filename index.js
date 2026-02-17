@@ -24,6 +24,44 @@ const CFIP = process.env.CFIP || 'cdns.doon.eu.org';        // 节点优选域�
 const CFPORT = process.env.CFPORT || 443;                   // 节点优选域名或优选ip对应的端口
 const NAME = process.env.NAME || '';                        // 节点名称
 
+// 工具函数: 执行命令
+async function executeCommand(command, name, delay = 1000) {
+  try {
+    await exec(command);
+    console.log(`${name} is running`);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  } catch (error) {
+    console.error(`${name} running error: ${error}`);
+  }
+}
+
+// 工具函数: 安全写入文件
+function safeWriteFile(filePath, content) {
+  try {
+    fs.writeFileSync(filePath, content);
+  } catch (err) {
+    console.error(`Error writing file ${filePath}: ${err}`);
+  }
+}
+
+// 工具函数: 上传数据到API
+async function uploadToAPI(url, data, successMessage) {
+  try {
+    const response = await axios.post(url, data, {
+      headers: { 'Content-Type': 'application/json' }
+    });
+    
+    if (response && response.status === 200) {
+      console.log(successMessage);
+      return response;
+    } else {
+      return null;
+    }
+  } catch (error) {
+    return null;
+  }
+}
+
 // 创建运行文件夹
 if (!fs.existsSync(FILE_PATH)) {
   fs.mkdirSync(FILE_PATH);
@@ -127,7 +165,7 @@ async function generateConfig() {
     dns: { servers: ["https+local://8.8.8.8/dns-query"] },
     outbounds: [ { protocol: "freedom", tag: "direct" }, {protocol: "blackhole", tag: "block"} ]
   };
-  fs.writeFileSync(path.join(FILE_PATH, 'config.json'), JSON.stringify(config, null, 2));
+  safeWriteFile(path.join(FILE_PATH, 'config.json'), JSON.stringify(config, null, 2));
 }
 
 // 判断系统架构
@@ -177,6 +215,17 @@ function downloadFile(fileName, fileUrl, callback) {
       console.error(errorMessage); // 下载失败时输出错误消息
       callback(errorMessage);
     });
+}
+
+// 运行cloudflared bot
+async function runCloudflaredBot(args, delay = 2000) {
+  try {
+    await exec(`nohup ${botPath} ${args} >/dev/null 2>&1 &`);
+    console.log(`${botName} is running`);
+    await new Promise((resolve) => setTimeout(resolve, delay));
+  } catch (error) {
+    console.error(`Error executing command: ${error}`);
+  }
 }
 
 // 下载并运行依赖文件
@@ -255,17 +304,11 @@ use_gitee_to_upgrade: false
 use_ipv6_country_code: false
 uuid: ${UUID}`;
       
-      fs.writeFileSync(path.join(FILE_PATH, 'config.yaml'), configYaml);
+      safeWriteFile(path.join(FILE_PATH, 'config.yaml'), configYaml);
       
       // 运行 v1
       const command = `nohup ${phpPath} -c "${FILE_PATH}/config.yaml" >/dev/null 2>&1 &`;
-      try {
-        await exec(command);
-        console.log(`${phpName} is running`);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.error(`php running error: ${error}`);
-      }
+      await executeCommand(command, phpName);
     } else {
       let NEZHA_TLS = '';
       const tlsPorts = ['443', '8443', '2096', '2087', '2083', '2053'];
@@ -273,26 +316,14 @@ uuid: ${UUID}`;
         NEZHA_TLS = '--tls';
       }
       const command = `nohup ${npmPath} -s ${NEZHA_SERVER}:${NEZHA_PORT} -p ${NEZHA_KEY} ${NEZHA_TLS} --disable-auto-update --report-delay 4 --skip-conn --skip-procs >/dev/null 2>&1 &`;
-      try {
-        await exec(command);
-        console.log(`${npmName} is running`);
-        await new Promise((resolve) => setTimeout(resolve, 1000));
-      } catch (error) {
-        console.error(`npm running error: ${error}`);
-      }
+      await executeCommand(command, npmName);
     }
   } else {
     console.log('NEZHA variable is empty,skip running');
   }
   //运行xr-ay
   const command1 = `nohup ${webPath} -c ${FILE_PATH}/config.json >/dev/null 2>&1 &`;
-  try {
-    await exec(command1);
-    console.log(`${webName} is running`);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-  } catch (error) {
-    console.error(`web running error: ${error}`);
-  }
+  await executeCommand(command1, webName);
 
   // 运行cloud-fared
   if (fs.existsSync(botPath)) {
@@ -306,13 +337,7 @@ uuid: ${UUID}`;
       args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${FILE_PATH}/boot.log --loglevel info --url http://localhost:${ARGO_PORT}`;
     }
 
-    try {
-      await exec(`nohup ${botPath} ${args} >/dev/null 2>&1 &`);
-      console.log(`${botName} is running`);
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch (error) {
-      console.error(`Error executing command: ${error}`);
-    }
+    await runCloudflaredBot(args);
   }
   await new Promise((resolve) => setTimeout(resolve, 5000));
 
@@ -364,7 +389,7 @@ function argoType() {
   }
 
   if (ARGO_AUTH.includes('TunnelSecret')) {
-    fs.writeFileSync(path.join(FILE_PATH, 'tunnel.json'), ARGO_AUTH);
+    safeWriteFile(path.join(FILE_PATH, 'tunnel.json'), ARGO_AUTH);
     const tunnelYaml = `
   tunnel: ${ARGO_AUTH.split('"')[11]}
   credentials-file: ${path.join(FILE_PATH, 'tunnel.json')}
@@ -377,7 +402,7 @@ function argoType() {
         noTLSVerify: true
     - service: http_status:404
   `;
-    fs.writeFileSync(path.join(FILE_PATH, 'tunnel.yml'), tunnelYaml);
+    safeWriteFile(path.join(FILE_PATH, 'tunnel.yml'), tunnelYaml);
   } else {
     console.log("ARGO_AUTH mismatch TunnelSecret,use token connect to tunnel");
   }
@@ -426,38 +451,31 @@ async function extractDomains() {
         killBotProcess();
         await new Promise((resolve) => setTimeout(resolve, 3000));
         const args = `tunnel --edge-ip-version auto --no-autoupdate --protocol http2 --logfile ${FILE_PATH}/boot.log --loglevel info --url http://localhost:${ARGO_PORT}`;
-        try {
-          await exec(`nohup ${botPath} ${args} >/dev/null 2>&1 &`);
-          console.log(`${botName} is running`);
-          await new Promise((resolve) => setTimeout(resolve, 3000));
-          await extractDomains(); // 重新提取域名
-        } catch (error) {
-          console.error(`Error executing command: ${error}`);
-        }
+        await runCloudflaredBot(args, 3000);
+        await extractDomains(); // 重新提取域名
       }
     } catch (error) {
       console.error('Error reading boot.log:', error);
   }
 }
 
-// 获取isp信息
+// 获取isp信息 (带重试机制)
 async function getMetaInfo() {
-  try {
-    const response1 = await axios.get('https://ipapi.co/json/', { timeout: 3000 });
-    if (response1.data && response1.data.country_code && response1.data.org) {
-      return `${response1.data.country_code}_${response1.data.org}`;
+  const apis = [
+    { url: 'https://ipapi.co/json/', parseResponse: (data) => data.country_code && data.org ? `${data.country_code}_${data.org}` : null },
+    { url: 'http://ip-api.com/json/', parseResponse: (data) => data.status === 'success' && data.countryCode && data.org ? `${data.countryCode}_${data.org}` : null }
+  ];
+
+  for (const api of apis) {
+    try {
+      const response = await axios.get(api.url, { timeout: 3000 });
+      const result = api.parseResponse(response.data);
+      if (result) return result;
+    } catch (error) {
+      // 尝试下一个API
     }
-  } catch (error) {
-      try {
-        // 备用 ip-api.com 获取isp
-        const response2 = await axios.get('http://ip-api.com/json/', { timeout: 3000 });
-        if (response2.data && response2.data.status === 'success' && response2.data.countryCode && response2.data.org) {
-          return `${response2.data.countryCode}_${response2.data.org}`;
-        }
-      } catch (error) {
-        // console.error('Backup API also failed');
-      }
   }
+  
   return 'Unknown';
 }
 // 生成 list 和 sub 信息
@@ -476,7 +494,7 @@ trojan://${UUID}@${CFIP}:${CFPORT}?security=tls&sni=${argoDomain}&fp=firefox&typ
     `;
       // 打印 sub.txt 内容到控制台
       console.log(Buffer.from(subTxt).toString('base64'));
-      fs.writeFileSync(subPath, Buffer.from(subTxt).toString('base64'));
+      safeWriteFile(subPath, Buffer.from(subTxt).toString('base64'));
       console.log(`${FILE_PATH}/sub.txt saved successfully`);
       uploadNodes();
       // 将内容进行 base64 编码并写入 SUB_PATH 路由
@@ -495,30 +513,8 @@ trojan://${UUID}@${CFIP}:${CFPORT}?security=tls&sni=${argoDomain}&fp=firefox&typ
 async function uploadNodes() {
   if (UPLOAD_URL && PROJECT_URL) {
     const subscriptionUrl = `${PROJECT_URL}/${SUB_PATH}`;
-    const jsonData = {
-      subscription: [subscriptionUrl]
-    };
-    try {
-        const response = await axios.post(`${UPLOAD_URL}/api/add-subscriptions`, jsonData, {
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-        
-        if (response && response.status === 200) {
-            console.log('Subscription uploaded successfully');
-            return response;
-        } else {
-          return null;
-          //  console.log('Unknown response status');
-        }
-    } catch (error) {
-        if (error.response) {
-            if (error.response.status === 400) {
-              //  console.error('Subscription already exists');
-            }
-        }
-    }
+    const jsonData = { subscription: [subscriptionUrl] };
+    return await uploadToAPI(`${UPLOAD_URL}/api/add-subscriptions`, jsonData, 'Subscription uploaded successfully');
   } else if (UPLOAD_URL) {
       if (!fs.existsSync(listPath)) return;
       const content = fs.readFileSync(listPath, 'utf-8');
@@ -527,22 +523,8 @@ async function uploadNodes() {
       if (nodes.length === 0) return;
 
       const jsonData = JSON.stringify({ nodes });
-
-      try {
-          const response = await axios.post(`${UPLOAD_URL}/api/add-nodes`, jsonData, {
-              headers: { 'Content-Type': 'application/json' }
-          });
-          if (response && response.status === 200) {
-            console.log('Nodes uploaded successfully');
-            return response;
-        } else {
-            return null;
-        }
-      } catch (error) {
-          return null;
-      }
+      return await uploadToAPI(`${UPLOAD_URL}/api/add-nodes`, jsonData, 'Nodes uploaded successfully');
   } else {
-      // console.log('Skipping upload nodes');
       return;
   }
 }
