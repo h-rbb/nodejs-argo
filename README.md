@@ -26,6 +26,7 @@ Telegram交流反馈群组：https://t.me/eooceu
 * node玩具平台只需上传index.js和package.json即可，paas平台需要docker部署的才上传Dockerfile。
 * 不填写ARGO_DOMAIN和ARGO_AUTH两个变量即启用临时隧道，反之则使用固定隧道。
 * 哪吒v0/v1可选,当哪吒端口为{443,8443,2096,2087,2083,2053}其中之一时，自动开启tls。
+* **新增支持**：现已支持在iStoreOS/OpenWRT路由器上部署，详见[iStoreOS部署指南](docs/iStoreOS-deployment.md)。
 
 ## 📋 环境变量
 
@@ -52,6 +53,50 @@ Telegram交流反馈群组：https://t.me/eooceu
 
 - 标准端口：`https://your-domain.com/sub`
 - 非标端口：`http://your-domain.com:port/sub`
+
+---
+
+## 🏠 iStoreOS/路由器部署 (Router Deployment)
+
+nodejs-argo现已支持在iStoreOS和OpenWRT路由器上部署，适用于AX1800Pro等型号。
+
+### 快速开始
+
+```bash
+# SSH连接到路由器
+ssh root@192.168.1.1
+
+# 安装Node.js
+opkg update && opkg install node node-npm
+
+# 安装nodejs-argo
+npm install -g nodejs-argo
+```
+
+### 特性支持
+
+- ✅ Firewall4 完全兼容
+- ✅ luci-app-homeproxy 集成支持
+- ✅ 自动拨号上网配置
+- ✅ 双频合一WiFi配置
+- ✅ 第三方插件兼容
+- ✅ 开机自启动服务
+- ✅ 内存优化（适配1GB RAM设备）
+
+### 详细文档
+
+完整的安装指南、配置说明和故障排除，请参阅：
+
+📖 **[iStoreOS完整部署指南](docs/iStoreOS-deployment.md)**
+
+包含内容：
+- 详细安装步骤
+- Firewall4配置
+- luci-app-homeproxy集成
+- 双频合一设置
+- 自动拨号配置
+- 性能优化建议
+- 常见问题解决
 
 ---
 
