@@ -1,0 +1,50 @@
+# Dockerfile for iStoreOS/OpenWRT Router Deployment
+# Optimized for resource-constrained devices (1GB RAM)
+
+FROM node:18-alpine
+
+LABEL maintainer="nodejs-argo"
+LABEL description="nodejs-argo for iStoreOS/OpenWRT routers"
+
+# Set working directory
+WORKDIR /app
+
+# Install dependencies for cloudflared and xray
+RUN apk add --no-cache \
+    ca-certificates \
+    curl \
+    wget \
+    && rm -rf /var/cache/apk/*
+
+# Copy package files
+COPY package*.json ./
+
+# Install Node.js dependencies with production flag to reduce size
+RUN npm ci --only=production \
+    && npm cache clean --force
+
+# Copy application files
+COPY index.js ./
+COPY LICENSE ./
+COPY README.md ./
+
+# Create tmp directory for runtime files
+RUN mkdir -p /app/tmp
+
+# Set environment variables with router-friendly defaults
+ENV NODE_ENV=production \
+    PORT=3000 \
+    ARGO_PORT=8001 \
+    FILE_PATH=/app/tmp \
+    SUB_PATH=sub \
+    NODE_OPTIONS="--max-old-space-size=256"
+
+# Expose ports
+EXPOSE 3000 8001
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+    CMD wget --no-verbose --tries=1 --spider http://localhost:${PORT}/ || exit 1
+
+# Start the application
+CMD ["node", "index.js"]

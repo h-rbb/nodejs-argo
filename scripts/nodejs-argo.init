@@ -1,0 +1,102 @@
+#!/bin/sh /etc/rc.common
+# Copyright (C) 2024 nodejs-argo
+# OpenWRT/iStoreOS init.d script for nodejs-argo
+
+START=99
+STOP=10
+
+USE_PROCD=1
+
+# 配置文件路径
+CONFIG_FILE="/etc/nodejs-argo.env"
+
+# 默认配置
+DEFAULT_PORT=3000
+DEFAULT_ARGO_PORT=8001
+DEFAULT_FILE_PATH="/opt/nodejs-argo/tmp"
+
+# 加载配置
+load_config() {
+    if [ -f "$CONFIG_FILE" ]; then
+        # 验证配置文件只包含变量赋值，防止命令注入
+        if grep -qE '^[[:space:]]*(#|$|[A-Z_]+=)' "$CONFIG_FILE"; then
+            . "$CONFIG_FILE"
+        else
+            echo "Warning: Invalid config file format, using defaults"
+        fi
+    fi
+    
+    # 使用环境变量或默认值
+    PORT=${PORT:-$DEFAULT_PORT}
+    ARGO_PORT=${ARGO_PORT:-$DEFAULT_ARGO_PORT}
+    FILE_PATH=${FILE_PATH:-$DEFAULT_FILE_PATH}
+}
+
+start_service() {
+    load_config
+    
+    # 确保工作目录存在
+    mkdir -p "$FILE_PATH"
+    
+    procd_open_instance
+    
+    # 根据安装方式选择执行路径
+    if [ -f "/usr/lib/node_modules/nodejs-argo/index.js" ]; then
+        # npm全局安装
+        procd_set_param command /usr/bin/node /usr/lib/node_modules/nodejs-argo/index.js
+    elif [ -f "/opt/nodejs-argo/index.js" ]; then
+        # 手动克隆安装
+        procd_set_param command /usr/bin/node /opt/nodejs-argo/index.js
+    else
+        echo "nodejs-argo not found, please install it first"
+        return 1
+    fi
+    
+    # 设置环境变量
+    [ -n "$PORT" ] && procd_set_param env PORT="$PORT"
+    [ -n "$ARGO_PORT" ] && procd_set_param env ARGO_PORT="$ARGO_PORT"
+    [ -n "$UUID" ] && procd_set_param env UUID="$UUID"
+    [ -n "$NEZHA_SERVER" ] && procd_set_param env NEZHA_SERVER="$NEZHA_SERVER"
+    [ -n "$NEZHA_PORT" ] && procd_set_param env NEZHA_PORT="$NEZHA_PORT"
+    [ -n "$NEZHA_KEY" ] && procd_set_param env NEZHA_KEY="$NEZHA_KEY"
+    [ -n "$ARGO_DOMAIN" ] && procd_set_param env ARGO_DOMAIN="$ARGO_DOMAIN"
+    [ -n "$ARGO_AUTH" ] && procd_set_param env ARGO_AUTH="$ARGO_AUTH"
+    [ -n "$CFIP" ] && procd_set_param env CFIP="$CFIP"
+    [ -n "$CFPORT" ] && procd_set_param env CFPORT="$CFPORT"
+    [ -n "$NAME" ] && procd_set_param env NAME="$NAME"
+    [ -n "$UPLOAD_URL" ] && procd_set_param env UPLOAD_URL="$UPLOAD_URL"
+    [ -n "$PROJECT_URL" ] && procd_set_param env PROJECT_URL="$PROJECT_URL"
+    [ -n "$AUTO_ACCESS" ] && procd_set_param env AUTO_ACCESS="$AUTO_ACCESS"
+    [ -n "$FILE_PATH" ] && procd_set_param env FILE_PATH="$FILE_PATH"
+    [ -n "$SUB_PATH" ] && procd_set_param env SUB_PATH="$SUB_PATH"
+    
+    # 设置工作目录
+    if [ -d "/opt/nodejs-argo" ]; then
+        procd_set_param workdir /opt/nodejs-argo
+    fi
+    
+    # 自动重启
+    procd_set_param respawn ${respawn_threshold:-3600} ${respawn_timeout:-5} ${respawn_retry:-5}
+    
+    # 输出日志
+    procd_set_param stdout 1
+    procd_set_param stderr 1
+    
+    procd_close_instance
+    
+    echo "nodejs-argo started on port $PORT"
+}
+
+stop_service() {
+    # procd will handle process termination automatically
+    echo "Stopping nodejs-argo..."
+}
+
+reload_service() {
+    stop
+    start
+}
+
+service_triggers() {
+    procd_add_reload_trigger "nodejs-argo"
+}
