@@ -1,0 +1,160 @@
+{
+  "name": "nodejs-argo-homeproxy",
+  "description": "Configuration template for luci-app-homeproxy integration",
+  "type": "xray",
+  "version": "1.0.0",
+  "settings": {
+    "log": {
+      "loglevel": "warning"
+    },
+    "inbounds": [
+      {
+        "tag": "transparent-in",
+        "port": 1088,
+        "protocol": "dokodemo-door",
+        "settings": {
+          "network": "tcp,udp",
+          "followRedirect": true
+        },
+        "sniffing": {
+          "enabled": true,
+          "destOverride": ["http", "tls", "quic"]
+        }
+      }
+    ],
+    "outbounds": [
+      {
+        "tag": "proxy-vless",
+        "protocol": "vless",
+        "settings": {
+          "vnext": [
+            {
+              "address": "REPLACE_WITH_CFIP",
+              "port": 443,
+              "users": [
+                {
+                  "id": "REPLACE_WITH_UUID",
+                  "encryption": "none",
+                  "level": 0
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "ws",
+          "security": "tls",
+          "tlsSettings": {
+            "serverName": "REPLACE_WITH_ARGO_DOMAIN",
+            "fingerprint": "firefox",
+            "allowInsecure": false
+          },
+          "wsSettings": {
+            "path": "/vless-argo?ed=2560",
+            "headers": {
+              "Host": "REPLACE_WITH_ARGO_DOMAIN"
+            }
+          }
+        }
+      },
+      {
+        "tag": "proxy-vmess",
+        "protocol": "vmess",
+        "settings": {
+          "vnext": [
+            {
+              "address": "REPLACE_WITH_CFIP",
+              "port": 443,
+              "users": [
+                {
+                  "id": "REPLACE_WITH_UUID",
+                  "alterId": 0,
+                  "security": "none",
+                  "level": 0
+                }
+              ]
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "ws",
+          "security": "tls",
+          "tlsSettings": {
+            "serverName": "REPLACE_WITH_ARGO_DOMAIN",
+            "fingerprint": "firefox",
+            "allowInsecure": false
+          },
+          "wsSettings": {
+            "path": "/vmess-argo?ed=2560",
+            "headers": {
+              "Host": "REPLACE_WITH_ARGO_DOMAIN"
+            }
+          }
+        }
+      },
+      {
+        "tag": "proxy-trojan",
+        "protocol": "trojan",
+        "settings": {
+          "servers": [
+            {
+              "address": "REPLACE_WITH_CFIP",
+              "port": 443,
+              "password": "REPLACE_WITH_UUID",
+              "level": 0
+            }
+          ]
+        },
+        "streamSettings": {
+          "network": "ws",
+          "security": "tls",
+          "tlsSettings": {
+            "serverName": "REPLACE_WITH_ARGO_DOMAIN",
+            "fingerprint": "firefox",
+            "allowInsecure": false
+          },
+          "wsSettings": {
+            "path": "/trojan-argo?ed=2560",
+            "headers": {
+              "Host": "REPLACE_WITH_ARGO_DOMAIN"
+            }
+          }
+        }
+      },
+      {
+        "tag": "direct",
+        "protocol": "freedom"
+      },
+      {
+        "tag": "block",
+        "protocol": "blackhole"
+      }
+    ],
+    "routing": {
+      "domainStrategy": "IPIfNonMatch",
+      "rules": [
+        {
+          "type": "field",
+          "ip": [
+            "geoip:private"
+          ],
+          "outboundTag": "direct"
+        },
+        {
+          "type": "field",
+          "domain": [
+            "geosite:cn"
+          ],
+          "outboundTag": "direct"
+        },
+        {
+          "type": "field",
+          "ip": [
+            "geoip:cn"
+          ],
+          "outboundTag": "direct"
+        }
+      ]
+    }
+  }
+}

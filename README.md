@@ -6,7 +6,7 @@
 [![npm downloads](https://img.shields.io/npm/dm/nodejs-argo.svg)](https://www.npmjs.com/package/nodejs-argo)
 [![License](https://img.shields.io/npm/l/nodejs-argo.svg)](https://github.com/eooce/nodejs-argo/blob/main/LICENSE)
 
-nodejs-argo是一个强大的Argo隧道部署工具，专为PaaS平台和游戏玩具平台设计。它支持多种代理协议（VLESS、VMess、Trojan等），并集成了哪吒探针功能。
+nodejs-argo是一个强大的Argo隧道部署工具，专为PaaS平台和游戏玩具平台设计。它支持多种代理协议（VLESS、VMess、Trojan等），并集成了哪吒探针功能。现已支持在OpenWrt/iStoreOS路由器系统上部署，完美兼容luci-app-homeproxy。
 
 ---
 
@@ -26,6 +26,7 @@ Telegram交流反馈群组：https://t.me/eooceu
 * node玩具平台只需上传index.js和package.json即可，paas平台需要docker部署的才上传Dockerfile。
 * 不填写ARGO_DOMAIN和ARGO_AUTH两个变量即启用临时隧道，反之则使用固定隧道。
 * 哪吒v0/v1可选,当哪吒端口为{443,8443,2096,2087,2083,2053}其中之一时，自动开启tls。
+* **新增**: 支持在OpenWrt/iStoreOS路由器系统上部署，兼容luci-app-homeproxy。详见 [OpenWrt部署指南](OPENWRT_GUIDE.md)
 
 ## 📋 环境变量
 
@@ -56,6 +57,33 @@ Telegram交流反馈群组：https://t.me/eooceu
 ---
 
 ## 🚀 进阶使用
+
+### 快速部署
+
+#### OpenWrt/iStoreOS 路由器部署
+
+专为路由器系统优化，支持 firewall4 和 luci-app-homeproxy：
+
+```bash
+# 下载并运行一键部署脚本
+wget -O /tmp/install-openwrt.sh https://raw.githubusercontent.com/eooce/nodejs-argo/main/install-openwrt.sh
+chmod +x /tmp/install-openwrt.sh
+/tmp/install-openwrt.sh
+
+# 生成 HomeProxy 配置
+sh /usr/lib/node_modules/nodejs-argo/generate-homeproxy-config.sh
+```
+
+**详细配置指南**: [OpenWrt/iStoreOS 部署指南](OPENWRT_GUIDE.md)
+
+**支持特性**:
+- ✅ firewall4 兼容
+- ✅ luci-app-homeproxy 集成
+- ✅ 自动拨号配置
+- ✅ 双频合一 WiFi
+- ✅ 系统服务管理
+
+#### 标准部署
 
 ### 安装
 
@@ -180,6 +208,62 @@ WantedBy=multi-user.target
 sudo systemctl start nodejs-argo
 sudo systemctl enable nodejs-argo
 ```
+
+## 🏠 HomeProxy 集成
+
+### luci-app-homeproxy 配置
+
+本项目完全兼容 OpenWrt/iStoreOS 上的 luci-app-homeproxy，可在路由器上实现透明代理。
+
+#### 支持的协议
+- ✅ VLESS + WebSocket + TLS
+- ✅ VMess + WebSocket + TLS
+- ✅ Trojan + WebSocket + TLS
+
+#### 配置步骤
+
+1. **部署 nodejs-argo**
+   ```bash
+   # 在路由器上运行
+   npm install -g nodejs-argo
+   nodejs-argo
+   ```
+
+2. **获取订阅地址**
+   ```bash
+   # 订阅地址: http://路由器IP:3000/sub
+   curl http://192.168.1.1:3000/sub | base64 -d
+   ```
+
+3. **配置 HomeProxy**
+   - 登录 LuCI: `http://192.168.1.1`
+   - 进入: **服务 → HomeProxy → 节点管理**
+   - 添加订阅或手动添加节点
+
+4. **使用配置模板**
+   ```bash
+   # 自动生成 HomeProxy 配置
+   sh generate-homeproxy-config.sh
+   ```
+
+#### 节点配置示例
+
+**VLESS 配置**:
+```
+地址: cdns.doon.eu.org
+端口: 443
+UUID: <your-uuid>
+传输: WebSocket
+路径: /vless-argo?ed=2560
+TLS: 启用
+SNI: <argo-domain>
+指纹: firefox
+```
+
+**配置文件**: 参见 [homeproxy-config.json](homeproxy-config.json)
+
+**完整指南**: 参见 [OPENWRT_GUIDE.md](OPENWRT_GUIDE.md)
+
 
 ## 🔄 更新
 
