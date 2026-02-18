@@ -130,9 +130,18 @@ if [ "$CREATE_CONFIG" = "1" ]; then
     # 生成随机UUID
     if command -v uuidgen >/dev/null 2>&1; then
         NEW_UUID=$(uuidgen)
+    elif [ -f /proc/sys/kernel/random/uuid ]; then
+        NEW_UUID=$(cat /proc/sys/kernel/random/uuid)
     else
-        # 如果没有uuidgen，使用备用方法
-        NEW_UUID=$(cat /proc/sys/kernel/random/uuid 2>/dev/null || echo "89c13786-25aa-4520-b2e7-12cd60fb5202")
+        # 使用/dev/urandom生成UUID
+        NEW_UUID=$(od -x /dev/urandom | head -1 | awk '{OFS="-"; print $2$3,$4,$5,$6,$7$8$9}')
+    fi
+    
+    # 验证UUID生成成功
+    if [ -z "$NEW_UUID" ] || [ "$NEW_UUID" = "89c13786-25aa-4520-b2e7-12cd60fb5202" ]; then
+        echo "${RED}✗ UUID生成失败${NC}"
+        echo "${YELLOW}请手动编辑 /etc/nodejs-argo.env 并设置UUID${NC}"
+        NEW_UUID="PLEASE-CHANGE-THIS-UUID-$(date +%s)"
     fi
     
     cat > /etc/nodejs-argo.env << EOF
@@ -216,8 +225,8 @@ if [ -f "$INSTALL_PATH/scripts/nodejs-argo.init" ]; then
     cp "$INSTALL_PATH/scripts/nodejs-argo.init" /etc/init.d/nodejs-argo
     chmod +x /etc/init.d/nodejs-argo
     echo "${GREEN}✓ 系统服务安装完成${NC}"
-elif [ -f "$(dirname $0)/scripts/nodejs-argo.init" ]; then
-    cp "$(dirname $0)/scripts/nodejs-argo.init" /etc/init.d/nodejs-argo
+elif [ -f "$(dirname "$0")/scripts/nodejs-argo.init" ]; then
+    cp "$(dirname "$0")/scripts/nodejs-argo.init" /etc/init.d/nodejs-argo
     chmod +x /etc/init.d/nodejs-argo
     echo "${GREEN}✓ 系统服务安装完成${NC}"
 else
@@ -245,7 +254,7 @@ echo "4. 检查服务状态:"
 echo "   ${YELLOW}/etc/init.d/nodejs-argo status${NC}"
 echo ""
 echo "5. 访问订阅地址:"
-echo "   ${YELLOW}http://$(uci get network.lan.ipaddr 2>/dev/null || echo "路由器IP"):3000/sub${NC}"
+echo "   ${YELLOW}http://$(uci get network.lan.ipaddr 2>/dev/null || echo "ROUTER-IP"):3000/sub${NC}"
 echo ""
 echo "详细文档: https://github.com/h-rbb/nodejs-argo/blob/main/docs/iStoreOS-deployment.md"
 echo ""

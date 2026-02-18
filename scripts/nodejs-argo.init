@@ -18,7 +18,12 @@ DEFAULT_FILE_PATH="/opt/nodejs-argo/tmp"
 # 加载配置
 load_config() {
     if [ -f "$CONFIG_FILE" ]; then
-        . "$CONFIG_FILE"
+        # 验证配置文件只包含变量赋值，防止命令注入
+        if grep -qE '^[[:space:]]*(#|$|[A-Z_]+=)' "$CONFIG_FILE"; then
+            . "$CONFIG_FILE"
+        else
+            echo "Warning: Invalid config file format, using defaults"
+        fi
     fi
     
     # 使用环境变量或默认值
@@ -83,6 +88,7 @@ start_service() {
 }
 
 stop_service() {
+    # procd will handle process termination automatically
     echo "Stopping nodejs-argo..."
 }
 

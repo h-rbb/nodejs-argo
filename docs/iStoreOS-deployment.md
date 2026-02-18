@@ -177,7 +177,8 @@ start_service() {
 }
 
 stop_service() {
-    killall node
+    # procd will handle stopping the service automatically
+    echo "Stopping nodejs-argo..."
 }
 EOF
 
